@@ -1,8 +1,9 @@
-import { sendWelcomeEmail } from "../../emails/emailHandlers.js"; // Lưu ý đường dẫn thay đổi
-import { generateToken } from "../../lib/utils.js";
-import User from "../../models/User.js";
+import { sendWelcomeEmail } from "../emails/emailHandlers.js";
+import { generateToken } from "../lib/utils.js";
+import User from "../models/User.js";
 import bcrypt from "bcryptjs";
-import { ENV } from "../../lib/env.js";
+import { ENV } from "../lib/env.js";
+import cloudinary from "../lib/cloudinary.js";
 
 export const signup = async (req, res) => {
   const { fullName, email, password } = req.body;
@@ -16,7 +17,7 @@ export const signup = async (req, res) => {
       return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
 
-    // check if emailis valid: regex
+    // kiểm tra email có hợp lệ không
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).json({ message: "Invalid email format" });
@@ -37,7 +38,7 @@ export const signup = async (req, res) => {
 
     if (newUser) {
       // after CR:
-      // Persist user first, then issue auth cookie
+      // lưu người dùng vào db trước, rồi cấp ck xác thực
       const savedUser = await newUser.save();
       generateToken(savedUser._id, res);
 
@@ -60,4 +61,33 @@ export const signup = async (req, res) => {
     console.log("Error in signup controller:", error);
     res.status(500).json({ message: "Internal server error" });
   }
+};
+
+export const login = async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ message: "Email and password are required" });
+  }
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ message: "Invalid credentials" });
+    // không nói mật khẩu hay mật khẩu sai để tránh lộ thông tin
+
+    const isPasswordCorrect = await bcrypt.compare(password, user.password);
+    if (!isPasswordCorrect) return res.status(400).json({ message: "Invalid credentials" });
+
+    generateToken(user._id, res);
+
+    res.status(200).json({
+      _id: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      profilePic: user.profilePic,
+    });
+  } catch (error) {
+    console.error("Error in login controller:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };

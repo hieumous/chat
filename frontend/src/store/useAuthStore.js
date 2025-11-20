@@ -96,6 +96,9 @@ export const useAuthStore = create((set, get) => ({
     socket.on("getOnlineUsers", (userIds) => {
       set({ onlineUsers: userIds });
     });
+
+    // Setup call event listeners (will be handled by CallModal component)
+    // These are set up here so they're available when socket connects
   },
 
   disconnectSocket: () => {

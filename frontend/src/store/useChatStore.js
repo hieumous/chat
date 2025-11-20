@@ -60,14 +60,19 @@ export const useChatStore = create((set, get) => ({
     const { selectedUser, messages } = get();
     const { authUser } = useAuthStore.getState();
 
+    if (!selectedUser) {
+      toast.error("Please select a user to send message");
+      return;
+    }
+
     const tempId = `temp-${Date.now()}`;
 
     const optimisticMessage = {
       _id: tempId,
       senderId: authUser._id,
       receiverId: selectedUser._id,
-      text: messageData.text,
-      image: messageData.image,
+      text: messageData.text || "",
+      image: messageData.image || "",
       createdAt: new Date().toISOString(),
       isOptimistic: true, // flag to identify optimistic messages (optional)
     };
@@ -75,12 +80,24 @@ export const useChatStore = create((set, get) => ({
     set({ messages: [...messages, optimisticMessage] });
 
     try {
-      const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData);
-      set({ messages: messages.concat(res.data) });
+      const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData, {
+        timeout: 30000, // 30 seconds timeout for image upload
+      });
+      
+      // Remove optimistic message and add real message
+      const filteredMessages = messages.filter(msg => msg._id !== tempId);
+      set({ messages: [...filteredMessages, res.data] });
     } catch (error) {
       // remove optimistic message on failure
-      set({ messages: messages });
-      toast.error(error.response?.data?.message || "Something went wrong");
+      const filteredMessages = messages.filter(msg => msg._id !== tempId);
+      set({ messages: filteredMessages });
+      
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          error.message || 
+                          "Failed to send message. Please try again.";
+      toast.error(errorMessage);
+      console.error("Send message error:", error);
     }
   },
 

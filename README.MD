@@ -18,9 +18,12 @@ Highlights:
 - 🚀 Easy Deployment (free-tier friendly with Sevalla)
 
 
+<<<<<<< HEAD
 
 ---
 
+=======
+>>>>>>> 556b1e4b7c4421e5e7c43a21eea44ff0b846d6fb
 ## 🔧 Run the Backend
 
 ```bash

@@ -15,6 +15,15 @@ function ActiveTabSwitch() {
       </button>
 
       <button
+        onClick={() => setActiveTab("groups")}
+        className={`tab ${
+          activeTab === "groups" ? "bg-cyan-100 text-cyan-700" : "text-gray-600"
+        }`}
+      >
+        Groups
+      </button>
+
+      <button
         onClick={() => setActiveTab("contacts")}
         className={`tab ${
           activeTab === "contacts" ? "bg-cyan-100 text-cyan-700" : "text-gray-600"

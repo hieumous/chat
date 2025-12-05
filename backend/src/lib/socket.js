@@ -84,10 +84,62 @@ io.on("connection", (socket) => {
     const { to } = data;
     const receiverSocketId = userSocketMap[to];
 
+    console.log(`📞 End call request from ${socket.user.fullName} (${userId}) to user ${to}`);
+    console.log(`   Receiver socketId: ${receiverSocketId || 'NOT FOUND'}`);
+    console.log(`   Available users in map:`, Object.keys(userSocketMap));
+    
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("callEnded");
-      console.log(`Call ended`);
+      console.log(`✅ Call ended event sent to user ${to} (socketId: ${receiverSocketId})`);
+    } else {
+      console.log(`❌ User ${to} is not online or not found in userSocketMap`);
+      console.log(`   Current userSocketMap:`, userSocketMap);
     }
+  });
+
+  // Typing indicators for one-on-one chat
+  socket.on("typing", (data) => {
+    const { to } = data;
+    const receiverSocketId = userSocketMap[to];
+
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("userTyping", {
+        from: userId,
+        name: socket.user.fullName,
+      });
+    }
+  });
+
+  socket.on("stopTyping", (data) => {
+    const { to } = data;
+    const receiverSocketId = userSocketMap[to];
+
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("userStopTyping", {
+        from: userId,
+      });
+    }
+  });
+
+  // Group typing indicators
+  socket.on("groupTyping", (data) => {
+    const { groupId } = data;
+    // Get all members of the group and emit to them except the sender
+    // Note: In a real implementation, you'd need to store group memberships
+    // For now, we'll emit to all connected users and let the client filter
+    socket.broadcast.emit("userTypingInGroup", {
+      groupId,
+      from: userId,
+      name: socket.user.fullName,
+    });
+  });
+
+  socket.on("stopGroupTyping", (data) => {
+    const { groupId } = data;
+    socket.broadcast.emit("userStopTypingInGroup", {
+      groupId,
+      from: userId,
+    });
   });
 });
 

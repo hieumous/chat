@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useCallStore } from "../store/useCallStore";
 import { useAuthStore } from "../store/useAuthStore";
+import { useChatStore } from "../store/useChatStore";
 import { PhoneIcon, VideoIcon, XIcon, PhoneOffIcon, MicIcon, MicOffIcon, VideoOffIcon } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -16,24 +17,89 @@ function CallModal() {
     answerCall,
     rejectCall,
     endCall,
+    otherUser,
+    receiverId,
   } = useCallStore();
+  const { selectedUser, allContacts, chats } = useChatStore();
   const { socket, authUser } = useAuthStore();
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const remoteAudioRef = useRef(null); // For audio calls
   const [muted, setMuted] = useState(false);
   const [videoOff, setVideoOff] = useState(false);
+  
+  // Determine the other user (opposite party in the call)
+  const getOtherUser = () => {
+    if (otherUser) return otherUser;
+    
+    // If we're the caller, get receiver info from selectedUser or contacts
+    if (isCalling && receiverId) {
+      if (selectedUser && selectedUser._id === receiverId) {
+        return selectedUser;
+      }
+      return allContacts.find(c => c._id === receiverId) || 
+             chats.find(c => c._id === receiverId);
+    }
+    
+    // If we're the receiver, get caller info
+    if (receivingCall || (callAccepted && caller)) {
+      const callerId = typeof caller === "object" ? caller.id : caller;
+      return allContacts.find(c => c._id === callerId) || 
+             chats.find(c => c._id === callerId) ||
+             (caller && typeof caller === "object" ? { _id: caller.id, fullName: caller.name, profilePic: null } : null);
+    }
+    
+    return null;
+  };
+  
+  const displayUser = getOtherUser();
+
+  // Reset mute and video state when a new call starts
+  useEffect(() => {
+    if (stream) {
+      // Reset states when stream is created (new call started)
+      setMuted(false);
+      setVideoOff(false);
+      // Ensure audio tracks are enabled when starting a new call
+      stream.getAudioTracks().forEach((track) => {
+        track.enabled = true;
+      });
+      // Ensure video tracks are enabled when starting a new call
+      if (callType === "video") {
+        stream.getVideoTracks().forEach((track) => {
+          track.enabled = true;
+          console.log("✅ Video track enabled on stream creation:", track.enabled, track.label);
+        });
+        // Đảm bảo local video ref được gán ngay
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream;
+          console.log("✅ Local video ref assigned immediately");
+        }
+      }
+    }
+  }, [stream, callType]);
 
   // Setup socket listeners for incoming calls
   useEffect(() => {
     if (!socket) return;
 
     const handleIncomingCall = (data) => {
+      // Try to get caller info from chat store
+      const { allContacts, chats } = useChatStore.getState();
+      let callerInfo = allContacts.find(c => c._id === data.from) || 
+                      chats.find(c => c._id === data.from);
+      
+      // If not found, use basic info from data
+      if (!callerInfo) {
+        callerInfo = { _id: data.from, fullName: data.name, profilePic: null };
+      }
+      
       useCallStore.setState({
         receivingCall: true,
         caller: { id: data.from, name: data.name },
         callerSignal: data.signal,
         callType: data.callType,
+        otherUser: callerInfo, // Store for display
       });
     };
 
@@ -51,8 +117,43 @@ function CallModal() {
     };
 
     const handleCallEnded = () => {
-      useCallStore.getState().endCall();
-      toast.info("Call ended");
+      console.log("🔔 Received callEnded event - ending call on this side");
+      const currentState = useCallStore.getState();
+      console.log("Current state when receiving callEnded:", {
+        callAccepted: currentState.callAccepted,
+        isCalling: currentState.isCalling,
+        receivingCall: currentState.receivingCall,
+      });
+      
+      // Cleanup refs immediately
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = null;
+      }
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = null;
+      }
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.srcObject = null;
+        remoteAudioRef.current.pause();
+      }
+      
+      // End the call (skip notification since other side already ended)
+      useCallStore.getState().endCall(true);
+      
+      // Force state update to ensure modal hides immediately
+      setTimeout(() => {
+        useCallStore.setState({
+          callAccepted: false,
+          isCalling: false,
+          receivingCall: false,
+          stream: null,
+          remoteStream: null,
+          call: null,
+        });
+        console.log("✅ State reset complete - modal should hide now");
+      }, 0);
+      
+      toast.info("Cuộc gọi đã kết thúc");
     };
 
     const handleUserOffline = () => {
@@ -75,19 +176,65 @@ function CallModal() {
     };
   }, [socket]);
 
-  // Setup local video stream
+  // Setup local video stream (small frame - top right)
   useEffect(() => {
-    if (stream && localVideoRef.current) {
+    if (stream && localVideoRef.current && callType === "video") {
       localVideoRef.current.srcObject = stream;
+      // Đảm bảo video tracks được enable theo trạng thái videoOff
+      stream.getVideoTracks().forEach((track) => {
+        track.enabled = !videoOff;
+      });
+      console.log("✅ Local video stream assigned to small frame (top-right)", { videoOff, trackEnabled: !videoOff });
     }
-  }, [stream]);
+    return () => {
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = null;
+      }
+    };
+  }, [stream, callType, videoOff]);
 
-  // Setup remote video stream
+  // Đảm bảo local video hiển thị ngay khi callAccepted và stream có
   useEffect(() => {
-    if (remoteStream && remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = remoteStream;
+    if (callAccepted && callType === "video" && stream && localVideoRef.current) {
+      // Force update để đảm bảo video hiển thị
+      const videoElement = localVideoRef.current;
+      if (videoElement.srcObject !== stream) {
+        videoElement.srcObject = stream;
+      }
+      // Đảm bảo video tracks enabled
+      stream.getVideoTracks().forEach((track) => {
+        if (!track.enabled && !videoOff) {
+          track.enabled = true;
+        }
+      });
+      console.log("✅ Local video ensured visible on call accepted");
     }
-  }, [remoteStream]);
+  }, [callAccepted, callType, stream, videoOff]);
+
+  // Setup remote video stream (large frame - full screen)
+  useEffect(() => {
+    if (remoteStream && remoteVideoRef.current && callType === "video") {
+      remoteVideoRef.current.srcObject = remoteStream;
+      console.log("✅ Remote video stream assigned to large frame (full screen)");
+    }
+    return () => {
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = null;
+      }
+    };
+  }, [remoteStream, callType]);
+
+  // Đảm bảo remote video hiển thị ngay khi callAccepted và remoteStream có
+  useEffect(() => {
+    if (callAccepted && callType === "video" && remoteStream && remoteVideoRef.current) {
+      // Force update để đảm bảo video hiển thị
+      const videoElement = remoteVideoRef.current;
+      if (videoElement.srcObject !== remoteStream) {
+        videoElement.srcObject = remoteStream;
+      }
+      console.log("✅ Remote video ensured visible on call accepted");
+    }
+  }, [callAccepted, callType, remoteStream]);
 
   // Setup remote audio stream for audio calls
   useEffect(() => {
@@ -106,8 +253,8 @@ function CallModal() {
     if (stream) {
       const newMutedState = !muted;
       stream.getAudioTracks().forEach((track) => {
-        track.enabled = newMutedState; // If muted, track.enabled = false
-        console.log("Audio track muted:", !newMutedState, "enabled:", track.enabled);
+        track.enabled = !newMutedState; // If muted (newMutedState = true), track.enabled = false
+        console.log("Audio track muted:", newMutedState, "enabled:", track.enabled);
       });
       setMuted(newMutedState);
     }
@@ -116,10 +263,12 @@ function CallModal() {
   // Toggle video
   const toggleVideo = () => {
     if (stream && callType === "video") {
+      const newVideoOffState = !videoOff;
       stream.getVideoTracks().forEach((track) => {
-        track.enabled = videoOff;
+        track.enabled = !newVideoOffState; // Nếu videoOff = true, thì enabled = false
       });
-      setVideoOff(!videoOff);
+      setVideoOff(newVideoOffState);
+      console.log("Video toggled:", { videoOff: newVideoOffState, trackEnabled: !newVideoOffState });
     }
   };
 
@@ -163,6 +312,21 @@ function CallModal() {
               playsInline
               style={{ display: "none" }}
             />
+            
+            {/* Other user thumbnail - top right corner */}
+            {displayUser && (
+              <div className="absolute top-4 right-4 w-28 h-28 rounded-lg overflow-hidden border-2 border-white shadow-lg bg-gray-800">
+                <img
+                  src={displayUser.profilePic || "/avatar.png"}
+                  alt={displayUser.fullName || "User"}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs px-2 py-1 text-center truncate font-medium">
+                  {displayUser.fullName || "User"}
+                </div>
+              </div>
+            )}
+            
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
                 <div className="w-32 h-32 bg-cyan-500 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -178,9 +342,9 @@ function CallModal() {
           </>
         )}
 
-        {/* Local Video (Small overlay) */}
+        {/* Local Video (Small overlay) - Top right corner */}
         {callAccepted && callType === "video" && stream && (
-          <div className="absolute bottom-20 right-4 w-48 h-36 rounded-lg overflow-hidden border-2 border-white shadow-lg">
+          <div className="absolute top-4 right-4 w-56 h-40 rounded-lg overflow-hidden border-2 border-white shadow-lg z-10">
             <video
               ref={localVideoRef}
               autoPlay
@@ -242,7 +406,7 @@ function CallModal() {
               <h3 className="text-2xl font-bold text-white mb-2">Calling...</h3>
               <p className="text-gray-300 mb-8">Waiting for answer</p>
               <button
-                onClick={endCall}
+                onClick={() => endCall(false)}
                 className="bg-red-500 hover:bg-red-600 text-white p-4 rounded-full transition-colors"
               >
                 <PhoneOffIcon className="w-6 h-6" />
@@ -281,7 +445,7 @@ function CallModal() {
 
               {/* End Call */}
               <button
-                onClick={endCall}
+                onClick={() => endCall(false)}
                 className="bg-red-500 hover:bg-red-600 text-white p-4 rounded-full transition-colors"
                 title="End Call"
               >

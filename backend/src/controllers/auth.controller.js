@@ -114,46 +114,30 @@ export const updateProfile = async (req, res) => {
     const userId = req.user._id;
     let profilePicUrl;
 
-    // Check base64 size (max 2MB for profile pics)
-    const base64Size = (profilePic.length * 3) / 4;
-    const maxBase64Size = 2 * 1024 * 1024; // 2MB
+    // Check Cloudinary configuration
+    if (!isCloudinaryConfigured) {
+      return res.status(500).json({ 
+        message: "Cloudinary is not configured. Please configure Cloudinary to upload profile pictures." 
+      });
+    }
 
-    // For local development, always store in database
-    // For production, use Cloudinary if configured
-    const isLocal = process.env.NODE_ENV !== "production";
-    
-    if (isLocal || !isCloudinaryConfigured) {
-      // Store base64 directly in database for local development
-      if (base64Size > maxBase64Size) {
-        return res.status(400).json({ 
-          message: `Image is too large (${Math.round(base64Size / 1024 / 1024)}MB). Maximum size is 2MB.` 
-        });
-      }
-      profilePicUrl = profilePic; // Store base64 directly in MongoDB
-      console.log("📸 Profile picture stored as base64 in database (local mode)");
-    } else {
-      // Upload to Cloudinary in production if configured
-      try {
-        const uploadResponse = await cloudinary.uploader.upload(profilePic, {
-          folder: "chatify/profiles",
-          resource_type: "image",
-          transformation: [
-            { width: 400, height: 400, crop: "limit", quality: "auto" }
-          ]
-        });
-        profilePicUrl = uploadResponse.secure_url;
-        console.log("📸 Profile picture uploaded to Cloudinary");
-      } catch (cloudinaryError) {
-        console.error("Cloudinary upload error:", cloudinaryError);
-        // Fallback to base64 if Cloudinary fails
-        if (base64Size > maxBase64Size) {
-          return res.status(400).json({ 
-            message: `Image is too large (${Math.round(base64Size / 1024 / 1024)}MB). Maximum size is 2MB.` 
-          });
-        }
-        console.warn("Cloudinary upload failed, storing as base64 instead");
-        profilePicUrl = profilePic;
-      }
+    // Upload to Cloudinary only
+    try {
+      const uploadResponse = await cloudinary.uploader.upload(profilePic, {
+        folder: "chatify/profiles",
+        resource_type: "image",
+        transformation: [
+          { width: 400, height: 400, crop: "limit", quality: "auto" }
+        ]
+      });
+      profilePicUrl = uploadResponse.secure_url;
+      console.log("📸 Profile picture uploaded to Cloudinary:", uploadResponse.secure_url);
+    } catch (cloudinaryError) {
+      console.error("Cloudinary upload error:", cloudinaryError);
+      return res.status(500).json({ 
+        message: "Failed to upload profile picture to Cloudinary. Please try again later.",
+        error: cloudinaryError.message
+      });
     }
 
     const updatedUser = await User.findByIdAndUpdate(

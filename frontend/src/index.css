@@ -33,3 +33,24 @@
   @apply px-4 py-2 inline-block bg-cyan-50 rounded-lg text-cyan-600
   hover:text-cyan-700 text-sm transition-colors;
 }
+
+/* Typing indicator animation */
+.typing-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #6b7280;
+  border-radius: 50%;
+  display: inline-block;
+  animation: typing-bounce 1.4s infinite ease-in-out;
+}
+
+@keyframes typing-bounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-8px);
+    opacity: 1;
+  }
+}

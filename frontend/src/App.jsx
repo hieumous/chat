@@ -8,6 +8,7 @@ import PageLoader from "./components/PageLoader";
 import CallModal from "./components/CallModal";
 
 import { Toaster } from "react-hot-toast";
+import UploadProgress from "./components/UploadProgress";
 
 function App() {
   const { checkAuth, isCheckingAuth, authUser } = useAuthStore();
@@ -19,11 +20,7 @@ function App() {
   if (isCheckingAuth) return <PageLoader />;
 
   return (
-    <div className="min-h-screen bg-gray-50 relative flex items-center justify-center p-4 overflow-hidden">
-      {/* DECORATORS - GRID BG & GLOW SHAPES */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#e5e7eb_1px,transparent_1px),linear-gradient(to_bottom,#e5e7eb_1px,transparent_1px)] bg-[size:14px_24px]" />
-      <div className="absolute top-0 -left-4 size-96 bg-pink-200 opacity-30 blur-[100px]" />
-      <div className="absolute bottom-0 -right-4 size-96 bg-cyan-200 opacity-30 blur-[100px]" />
+    <div className="min-h-screen bg-gray-50 relative overflow-hidden">
 
       <Routes>
         <Route path="/" element={authUser ? <ChatPage /> : <Navigate to={"/login"} />} />
@@ -33,6 +30,9 @@ function App() {
 
       {/* Call Modal - shows when there's an active call */}
       {authUser && <CallModal />}
+
+      {/* Upload Progress - shows when uploading files */}
+      {authUser && <UploadProgress />}
 
       <Toaster />
     </div>

@@ -194,10 +194,28 @@ function MessageInput() {
       {/* File Preview */}
       {selectedFile && (
         <div className="max-w-3xl mx-auto mb-3">
-          <FileUpload
-            onFileSelect={setSelectedFile}
-            onRemove={() => setSelectedFile(null)}
-          />
+          <div className="bg-gray-50 border border-gray-300 rounded-lg p-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-blue-100 text-blue-600">
+                  <PaperclipIcon className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{selectedFile.fileName}</p>
+                  <p className="text-xs text-gray-600">
+                    {selectedFile.fileSize ? `${(selectedFile.fileSize / 1024).toFixed(1)} KB` : ''}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedFile(null)}
+                className="p-1 text-gray-500 hover:text-gray-700"
+              >
+                <XIcon className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

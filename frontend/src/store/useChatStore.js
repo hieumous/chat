@@ -10,6 +10,7 @@ export const useChatStore = create((set, get) => ({
   messages: [],
   pinnedMessages: [], // Array of pinned messages for current chat
   replyingTo: null, // Message being replied to
+  searchQuery: "", // Search query for messages
   activeTab: "chats",
   selectedUser: null,
   selectedGroup: null,
@@ -72,6 +73,7 @@ export const useChatStore = create((set, get) => ({
   },
   setReplyingTo: (message) => set({ replyingTo: message }),
   clearReplyingTo: () => set({ replyingTo: null }),
+  setSearchQuery: (query) => set({ searchQuery: query }),
 
   getAllContacts: async () => {
     set({ isUsersLoading: true });
@@ -639,6 +641,7 @@ export const useChatStore = create((set, get) => ({
         replyTo: replyingTo || undefined, // Include replyTo in optimistic message
         createdAt: new Date().toISOString(),
         isOptimistic: true, // flag to identify optimistic messages (optional)
+        readStatus: "sent", // Initial status for sent messages
       };
       
       // Immediately update the UI by adding the message
@@ -1193,6 +1196,38 @@ export const useChatStore = create((set, get) => ({
     socket.off("groupMessageReactionRemoved");
     socket.off("messagePinned");
     socket.off("groupMessagePinned");
+    socket.off("messagesRead");
+  },
+
+  // Listen for messagesRead event to update read status in real-time
+  subscribeToReadStatus: () => {
+    const { selectedUser } = get();
+    if (!selectedUser) return;
+
+    const socket = useAuthStore.getState().socket;
+    if (!socket) return;
+
+    socket.on("messagesRead", (data) => {
+      const { selectedUser: currentSelectedUser, messages } = get();
+      // Only update if this is for the current conversation
+      if (currentSelectedUser && data.partnerId === currentSelectedUser._id) {
+        const lastReadAt = new Date(data.lastReadAt);
+        // Update read status for all messages sent by current user that are before lastReadAt
+        const updatedMessages = messages.map(msg => {
+          const isMyMessage = msg.senderId?._id === useAuthStore.getState().authUser?._id || 
+                             msg.senderId === useAuthStore.getState().authUser?._id;
+          if (isMyMessage && new Date(msg.createdAt) <= lastReadAt) {
+            return { ...msg, readStatus: "read" };
+          }
+          return msg;
+        });
+        set({ messages: updatedMessages });
+      }
+    });
+
+    return () => {
+      socket.off("messagesRead");
+    };
   },
 
   emitTyping: (to) => {

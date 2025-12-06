@@ -139,6 +139,40 @@ function ContextMenuPortal({
   );
 }
 
+// Helper function to format date
+const formatDateSeparator = (date) => {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  const messageDate = new Date(date);
+  messageDate.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  yesterday.setHours(0, 0, 0, 0);
+  
+  if (messageDate.getTime() === today.getTime()) {
+    return "Hôm nay";
+  } else if (messageDate.getTime() === yesterday.getTime()) {
+    return "Hôm qua";
+  } else {
+    return messageDate.toLocaleDateString("vi-VN", {
+      day: "numeric",
+      month: "long",
+      year: "numeric"
+    });
+  }
+};
+
+// Helper function to check if two dates are different days
+const isDifferentDay = (date1, date2) => {
+  if (!date1 || !date2) return false;
+  const d1 = new Date(date1);
+  const d2 = new Date(date2);
+  d1.setHours(0, 0, 0, 0);
+  d2.setHours(0, 0, 0, 0);
+  return d1.getTime() !== d2.getTime();
+};
+
 function ChatContainer({ onToggleRightSidebar, showRightSidebar = false }) {
   const {
     selectedUser,
@@ -161,6 +195,7 @@ function ChatContainer({ onToggleRightSidebar, showRightSidebar = false }) {
     pinMessage,
     starMessage,
     scrollToMessage,
+    searchQuery,
   } = useChatStore();
   
   const { authUser } = useAuthStore();
@@ -175,14 +210,29 @@ function ChatContainer({ onToggleRightSidebar, showRightSidebar = false }) {
   const isUserChat = !!selectedUser;
   const isGroupChat = !!selectedGroup;
 
+  // Filter messages based on search query
+  const filteredMessages = searchQuery
+    ? messages.filter((msg) => {
+        const query = searchQuery.toLowerCase();
+        return (
+          msg.text?.toLowerCase().includes(query) ||
+          msg.file?.fileName?.toLowerCase().includes(query)
+        );
+      })
+    : messages;
+
+  const { subscribeToReadStatus } = useChatStore();
+
   useEffect(() => {
     if (isUserChat) {
       getMessagesByUserId(selectedUser._id).catch(error => {
         console.error("Error fetching user messages", error);
       });
       subscribeToMessages();
+      const unsubscribeReadStatus = subscribeToReadStatus();
       return () => {
         unsubscribeFromMessages();
+        if (unsubscribeReadStatus) unsubscribeReadStatus();
       };
     } else if (isGroupChat) {
       getGroupMessages(selectedGroup._id).catch(error => {
@@ -193,7 +243,7 @@ function ChatContainer({ onToggleRightSidebar, showRightSidebar = false }) {
         unsubscribeFromMessages();
       };
     }
-  }, [selectedUser, selectedGroup, isUserChat, isGroupChat, getMessagesByUserId, getGroupMessages, subscribeToMessages, unsubscribeFromMessages]);
+  }, [selectedUser, selectedGroup, isUserChat, isGroupChat, getMessagesByUserId, getGroupMessages, subscribeToMessages, unsubscribeFromMessages, subscribeToReadStatus]);
 
   useEffect(() => {
     if (messageEndRef.current) {
@@ -234,19 +284,32 @@ function ChatContainer({ onToggleRightSidebar, showRightSidebar = false }) {
     <>
       <ChatHeader onToggleRightSidebar={onToggleRightSidebar} />
       <div className="flex-1 px-6 overflow-y-auto py-8">
-        {messages.length > 0 && !isMessagesLoading ? (
+        {filteredMessages.length > 0 && !isMessagesLoading ? (
           <div className={`mx-auto space-y-6 transition-all duration-300 ${showRightSidebar ? 'max-w-3xl' : 'max-w-5xl'}`}>
-            {messages.map((msg) => {
+            {filteredMessages.map((msg, index) => {
               const isMyMessage = msg.senderId?._id === authUser._id || msg.senderId === authUser._id;
               const senderName = msg.senderId?.fullName || "Unknown";
               const senderAvatar = msg.senderId?.profilePic || "/avatar.png";
               
+              // Check if we need to show a date separator
+              const prevMessage = index > 0 ? filteredMessages[index - 1] : null;
+              const showDateSeparator = !prevMessage || isDifferentDay(msg.createdAt, prevMessage.createdAt);
+              
               return (
-                <div
-                  key={msg._id}
-                  data-message-id={msg._id}
-                  className={`flex gap-2 ${isMyMessage ? "flex-row-reverse" : "flex-row"} relative mb-4`}
-                >
+                <div key={msg._id}>
+                  {/* Date Separator */}
+                  {showDateSeparator && (
+                    <div className="flex items-center justify-center my-4">
+                      <div className="bg-gray-100 text-gray-600 text-xs px-3 py-1 rounded-full">
+                        {formatDateSeparator(msg.createdAt)}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div
+                    data-message-id={msg._id}
+                    className={`flex gap-2 ${isMyMessage ? "flex-row-reverse" : "flex-row"} relative mb-4`}
+                  >
                   {/* Avatar - only show for received messages or group messages */}
                   {(!isMyMessage || isGroupChat) && (
                     <div className="flex-shrink-0">
@@ -476,12 +539,20 @@ function ChatContainer({ onToggleRightSidebar, showRightSidebar = false }) {
                     
                     {/* Timestamp and Action buttons row */}
                     <div className="flex items-center justify-between mt-1">
-                      <p className={`text-xs opacity-75 ${isMyMessage ? "text-white" : "text-gray-600"}`}>
-                        {new Date(msg.createdAt).toLocaleTimeString(undefined, {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
+                      <div className="flex items-center gap-1">
+                        <p className={`text-xs opacity-75 ${isMyMessage ? "text-white" : "text-gray-600"}`}>
+                          {new Date(msg.createdAt).toLocaleTimeString(undefined, {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                        {/* Read receipt for my messages */}
+                        {isMyMessage && msg.readStatus && (
+                          <span className={`text-xs ${isMyMessage ? "text-white" : "text-gray-600"}`} title={msg.readStatus === "read" ? "Đã đọc" : "Đã gửi"}>
+                            {msg.readStatus === "read" ? "✓✓" : "✓"}
+                          </span>
+                        )}
+                      </div>
                       
                       {/* Action buttons (Reply, Forward, More) and Reaction button - shown on hover */}
                       {!msg.isDeleted && (
@@ -639,6 +710,7 @@ function ChatContainer({ onToggleRightSidebar, showRightSidebar = false }) {
                     </div>
                   </div>
                 </div>
+                </div>
               );
             })}
             
@@ -681,6 +753,10 @@ function ChatContainer({ onToggleRightSidebar, showRightSidebar = false }) {
             
             {/* 👇 scroll target */}
             <div ref={messageEndRef} />
+          </div>
+        ) : searchQuery && filteredMessages.length === 0 ? (
+          <div className="max-w-3xl mx-auto text-center py-12">
+            <p className="text-gray-500">Không tìm thấy tin nhắn nào với từ khóa "{searchQuery}"</p>
           </div>
         ) : isMessagesLoading ? (
           <MessagesLoadingSkeleton />

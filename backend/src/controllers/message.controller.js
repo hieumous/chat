@@ -60,6 +60,34 @@ export const getMessagesByUserId = async (req, res) => {
       return msg;
     });
 
+    // Get receiver's last read time to determine read status for sender's messages
+    const receiverConversationRead = await ConversationRead.findOne({
+      userId: userToChatId,
+      partnerId: myId,
+    });
+
+    const receiverLastReadAt = receiverConversationRead?.lastReadAt || null;
+
+    // Add read status to messages
+    const messagesWithReadStatus = messagesWithReactions.map(msg => {
+      const isMyMessage = msg.senderId._id.toString() === myId.toString();
+      let readStatus = null;
+      
+      if (isMyMessage && msg.receiverId) {
+        // For sent messages, check if receiver has read it
+        if (receiverLastReadAt && new Date(msg.createdAt) <= receiverLastReadAt) {
+          readStatus = "read"; // Đã đọc
+        } else {
+          readStatus = "sent"; // Đã gửi
+        }
+      }
+      
+      return {
+        ...msg,
+        readStatus,
+      };
+    });
+
     // Mark conversation as read
     await ConversationRead.findOneAndUpdate(
       { userId: myId, partnerId: userToChatId },
@@ -71,7 +99,7 @@ export const getMessagesByUserId = async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    res.status(200).json(messagesWithReactions);
+    res.status(200).json(messagesWithReadStatus);
   } catch (error) {
     console.log("Error in getMessages controller: ", error.message);
     console.error("Full error:", error);
@@ -715,17 +743,27 @@ export const markConversationAsRead = async (req, res) => {
       return res.status(400).json({ message: "Partner ID is required" });
     }
 
+    const lastReadAt = new Date();
     await ConversationRead.findOneAndUpdate(
       { userId, partnerId },
       { 
         userId,
         partnerId,
-        lastReadAt: new Date() 
+        lastReadAt
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    res.status(200).json({ message: "Conversation marked as read" });
+    // Emit socket event to notify partner that messages were read
+    const partnerSocketId = getReceiverSocketId(partnerId);
+    if (partnerSocketId) {
+      io.to(partnerSocketId).emit("messagesRead", {
+        partnerId: userId,
+        lastReadAt: lastReadAt.toISOString(),
+      });
+    }
+
+    res.status(200).json({ message: "Conversation marked as read", lastReadAt });
   } catch (error) {
     console.error("Error in markConversationAsRead:", error);
     res.status(500).json({ message: "Internal server error", error: error.message });

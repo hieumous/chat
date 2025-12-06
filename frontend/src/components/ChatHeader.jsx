@@ -6,15 +6,28 @@ import { useCallStore } from "../store/useCallStore";
 import GroupMembersModal from "./GroupMembersModal";
 
 function ChatHeader({ onToggleRightSidebar = () => {} }) {
-  const { selectedUser, selectedGroup, setSelectedUser, setSelectedGroup, pinnedMessages, scrollToMessage, pinMessage } = useChatStore();
+  const { selectedUser, selectedGroup, setSelectedUser, setSelectedGroup, pinnedMessages, scrollToMessage, pinMessage, setSearchQuery, searchQuery } = useChatStore();
   const { onlineUsers } = useAuthStore();
   const { startCall } = useCallStore();
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [showAllPinned, setShowAllPinned] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
   
   const isUserChat = !!selectedUser;
   const isGroupChat = !!selectedGroup;
   const isOnline = selectedUser ? onlineUsers.includes(selectedUser._id) : false;
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setSearchQuery(searchInput);
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput("");
+    setSearchQuery("");
+    setShowSearch(false);
+  };
 
   useEffect(() => {
     const handleEscKey = (event) => {
@@ -93,6 +106,7 @@ function ChatHeader({ onToggleRightSidebar = () => {} }) {
             </button>
             {/* Search Button */}
             <button
+              onClick={() => setShowSearch(!showSearch)}
               className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
               title="Tìm kiếm"
             >
@@ -112,6 +126,7 @@ function ChatHeader({ onToggleRightSidebar = () => {} }) {
             </button>
             {/* Search Button */}
             <button
+              onClick={() => setShowSearch(!showSearch)}
               className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
               title="Tìm kiếm"
             >
@@ -130,6 +145,38 @@ function ChatHeader({ onToggleRightSidebar = () => {} }) {
         </button>
       </div>
       </div>
+
+      {/* Search Bar */}
+      {showSearch && (
+        <div className="px-6 py-2 bg-gray-50 border-t border-gray-200">
+          <form onSubmit={handleSearch} className="flex items-center gap-2">
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Tìm kiếm tin nhắn..."
+              className="flex-1 bg-white border border-gray-300 rounded-lg py-2 px-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              autoFocus
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                className="p-2 text-gray-500 hover:text-gray-700"
+                title="Xóa tìm kiếm"
+              >
+                <XIcon className="w-4 h-4" />
+              </button>
+            )}
+            <button
+              type="submit"
+              className="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors text-sm"
+            >
+              Tìm
+            </button>
+          </form>
+        </div>
+      )}
 
       {/* Pinned Messages Bar - Below Header */}
       {pinnedMessages && pinnedMessages.length > 0 && (

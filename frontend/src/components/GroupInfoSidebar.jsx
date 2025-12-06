@@ -145,7 +145,7 @@ function GroupInfoSidebar({ onClose }) {
               <button
                 onClick={handleCopyLink}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                title="Copy link"
+                title="Sao chép link"
               >
                 <CopyIcon className="w-4 h-4 text-gray-600" />
               </button>
@@ -174,7 +174,7 @@ function GroupInfoSidebar({ onClose }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">
-                    {member.fullName || "Unknown"}
+                    {member.fullName || "Không xác định"}
                     {selectedGroup.admin?._id === member._id || selectedGroup.admin === member._id ? (
                       <span className="ml-2 text-xs text-cyan-600">(Admin)</span>
                     ) : null}

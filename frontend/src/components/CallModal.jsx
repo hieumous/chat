@@ -81,9 +81,18 @@ function CallModal() {
 
   // Setup socket listeners for incoming calls
   useEffect(() => {
-    if (!socket) return;
+    if (!socket) {
+      console.log("⚠️ No socket available for incoming call listener");
+      return;
+    }
+    
+    console.log("✅ Setting up incoming call listeners", {
+      socketId: socket.id,
+      connected: socket.connected
+    });
 
     const handleIncomingCall = (data) => {
+      console.log("📞 Incoming call received:", data);
       // Try to get caller info from chat store
       const { allContacts, chats } = useChatStore.getState();
       let callerInfo = allContacts.find(c => c._id === data.from) || 
@@ -94,6 +103,7 @@ function CallModal() {
         callerInfo = { _id: data.from, fullName: data.name, profilePic: null };
       }
       
+      console.log("📞 Setting receivingCall state");
       useCallStore.setState({
         receivingCall: true,
         caller: { id: data.from, name: data.name },
@@ -111,10 +121,7 @@ function CallModal() {
       }
     };
 
-    const handleCallRejected = () => {
-      useCallStore.getState().endCall();
-      toast.error("Call rejected");
-    };
+    // callRejected được xử lý trong useCallStore.js (chỉ khi người gọi nhận được reject)
 
     const handleCallEnded = () => {
       console.log("🔔 Received callEnded event - ending call on this side");
@@ -157,20 +164,44 @@ function CallModal() {
     };
 
     const handleUserOffline = () => {
-      toast.error("User is offline");
-      useCallStore.getState().endCall();
+      toast.error("Người dùng đang offline");
+      // Nếu là người gọi, gửi tin nhắn "missed"
+      const { isCalling, receiverId, callType } = useCallStore.getState();
+      if (isCalling && callType) {
+        // Người gọi gửi tin nhắn "missed" trước khi endCall
+        const { selectedUser, selectedGroup, sendMessage, sendGroupMessage } = useChatStore.getState();
+        const callMessage = {
+          call: {
+            callType: callType,
+            duration: 0,
+            status: "missed"
+          }
+        };
+        
+        if (selectedUser && selectedUser._id === receiverId) {
+          sendMessage(callMessage).catch(error => {
+            console.error("Error sending missed call message:", error);
+          });
+        } else if (selectedGroup && selectedGroup._id === receiverId) {
+          sendGroupMessage(receiverId, callMessage).catch(error => {
+            console.error("Error sending missed group call message:", error);
+          });
+        }
+      }
+      useCallStore.getState().endCall(true); // Skip notification vì đã gửi tin nhắn rồi
     };
 
     socket.on("incomingCall", handleIncomingCall);
+    console.log("✅ incomingCall listener registered");
     socket.on("callAccepted", handleCallAccepted);
-    socket.on("callRejected", handleCallRejected);
+    // callRejected được xử lý trong useCallStore.js
     socket.on("callEnded", handleCallEnded);
     socket.on("userOffline", handleUserOffline);
 
     return () => {
       socket.off("incomingCall", handleIncomingCall);
       socket.off("callAccepted", handleCallAccepted);
-      socket.off("callRejected", handleCallRejected);
+      // callRejected được xử lý trong useCallStore.js
       socket.off("callEnded", handleCallEnded);
       socket.off("userOffline", handleUserOffline);
     };
@@ -318,11 +349,11 @@ function CallModal() {
               <div className="absolute top-4 right-4 w-28 h-28 rounded-lg overflow-hidden border-2 border-white shadow-lg bg-gray-800">
                 <img
                   src={displayUser.profilePic || "/avatar.png"}
-                  alt={displayUser.fullName || "User"}
+                  alt={displayUser.fullName || "Người dùng"}
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs px-2 py-1 text-center truncate font-medium">
-                  {displayUser.fullName || "User"}
+                  {displayUser.fullName || "Người dùng"}
                 </div>
               </div>
             )}
@@ -332,10 +363,10 @@ function CallModal() {
                 <div className="w-32 h-32 bg-cyan-500 rounded-full flex items-center justify-center mx-auto mb-6">
                   <PhoneIcon className="w-16 h-16 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-2">Audio Call</h3>
-                <p className="text-gray-300">Connected</p>
+                <h3 className="text-2xl font-bold text-white mb-2">Cuộc gọi thoại</h3>
+                <p className="text-gray-300">Đã kết nối</p>
                 {remoteStream && (
-                  <p className="text-green-400 text-sm mt-2">✓ Audio connected</p>
+                  <p className="text-green-400 text-sm mt-2">✓ Đã kết nối âm thanh</p>
                 )}
               </div>
             </div>
@@ -367,23 +398,23 @@ function CallModal() {
                 )}
               </div>
               <h3 className="text-2xl font-bold text-white mb-2">
-                Incoming {callType === "video" ? "Video" : "Audio"} Call
+                Cuộc gọi {callType === "video" ? "video" : "thoại"} đến
               </h3>
               <p className="text-gray-300 mb-8">
-                from {typeof caller === "object" ? caller?.name : "Unknown"}
+                từ {typeof caller === "object" ? caller?.name : "Không xác định"}
               </p>
               <div className="flex gap-4 justify-center">
                 <button
                   onClick={answerCall}
                   className="bg-green-500 hover:bg-green-600 text-white p-4 rounded-full transition-colors"
-                  title="Answer"
+                  title="Trả lời"
                 >
                   <PhoneIcon className="w-6 h-6" />
                 </button>
                 <button
                   onClick={rejectCall}
                   className="bg-red-500 hover:bg-red-600 text-white p-4 rounded-full transition-colors"
-                  title="Reject"
+                  title="Từ chối"
                 >
                   <PhoneOffIcon className="w-6 h-6" />
                 </button>
@@ -403,8 +434,8 @@ function CallModal() {
                   <PhoneIcon className="w-12 h-12 text-white" />
                 )}
               </div>
-              <h3 className="text-2xl font-bold text-white mb-2">Calling...</h3>
-              <p className="text-gray-300 mb-8">Waiting for answer</p>
+              <h3 className="text-2xl font-bold text-white mb-2">Đang gọi...</h3>
+              <p className="text-gray-300 mb-8">Đang chờ trả lời</p>
               <button
                 onClick={() => endCall(false)}
                 className="bg-red-500 hover:bg-red-600 text-white p-4 rounded-full transition-colors"
@@ -425,7 +456,7 @@ function CallModal() {
                 className={`p-4 rounded-full transition-colors ${
                   muted ? "bg-red-500 hover:bg-red-600" : "bg-gray-700 hover:bg-gray-600"
                 } text-white`}
-                title={muted ? "Unmute" : "Mute"}
+                title={muted ? "Bật tiếng" : "Tắt tiếng"}
               >
                 {muted ? <MicOffIcon className="w-6 h-6" /> : <MicIcon className="w-6 h-6" />}
               </button>
@@ -437,7 +468,7 @@ function CallModal() {
                   className={`p-4 rounded-full transition-colors ${
                     videoOff ? "bg-red-500 hover:bg-red-600" : "bg-gray-700 hover:bg-gray-600"
                   } text-white`}
-                  title={videoOff ? "Turn on video" : "Turn off video"}
+                  title={videoOff ? "Bật video" : "Tắt video"}
                 >
                   {videoOff ? <VideoOffIcon className="w-6 h-6" /> : <VideoIcon className="w-6 h-6" />}
                 </button>
@@ -447,7 +478,7 @@ function CallModal() {
               <button
                 onClick={() => endCall(false)}
                 className="bg-red-500 hover:bg-red-600 text-white p-4 rounded-full transition-colors"
-                title="End Call"
+                title="Kết thúc cuộc gọi"
               >
                 <PhoneOffIcon className="w-6 h-6" />
               </button>

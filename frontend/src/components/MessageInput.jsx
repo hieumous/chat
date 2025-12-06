@@ -127,14 +127,14 @@ function MessageInput() {
     if (!file) return;
     
     if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
+      toast.error("Vui lòng chọn file hình ảnh");
       return;
     }
 
     // Check file size (max 10MB for direct upload)
     const maxSize = 10 * 1024 * 1024; // 10MB in bytes
     if (file.size > maxSize) {
-      toast.error("Image size should be less than 10MB");
+      toast.error("Kích thước hình ảnh phải nhỏ hơn 10MB");
       return;
     }
 
@@ -147,20 +147,20 @@ function MessageInput() {
         // Fallback to base64
         const reader = new FileReader();
         reader.onerror = () => {
-          toast.error("Failed to read image file");
+          toast.error("Không thể đọc file hình ảnh");
         };
         reader.onloadend = () => {
           if (reader.result) {
             setImagePreview(reader.result);
           } else {
-            toast.error("Failed to load image");
+            toast.error("Không thể tải hình ảnh");
           }
         };
         reader.readAsDataURL(file);
       }
     } catch (error) {
       console.error("Image upload error:", error);
-      toast.error(error.message || "Failed to upload image. Please try again.");
+      toast.error(error.message || "Không thể tải lên hình ảnh. Vui lòng thử lại.");
     }
   };
 
@@ -232,7 +232,7 @@ function MessageInput() {
               isSoundEnabled && playRandomKeyStrokeSound();
             }}
             className="flex-1 bg-white border border-gray-300 rounded-lg py-2 px-4 text-gray-900"
-            placeholder="Type your message..."
+            placeholder="Nhập tin nhắn của bạn..."
           />
 
           <input

@@ -16,7 +16,7 @@ function FileUpload({ onFileSelect, onRemove }) {
 
     // Validate file type
     if (!isValidFileType(file.type)) {
-      toast.error(`File type ${file.type} is not supported. Please select a supported file type.`);
+      toast.error(`Loại file ${file.type} không được hỗ trợ. Vui lòng chọn loại file được hỗ trợ.`);
       return;
     }
 
@@ -24,7 +24,7 @@ function FileUpload({ onFileSelect, onRemove }) {
     const fileInfo = getFileInfo(file.type);
     const maxSize = fileInfo?.maxSize || 100 * 1024 * 1024; // Default 100MB for direct upload
     if (file.size > maxSize) {
-      toast.error(`File is too large. Maximum size is ${formatFileSize(maxSize)}.`);
+      toast.error(`File quá lớn. Kích thước tối đa là ${formatFileSize(maxSize)}.`);
       return;
     }
 
@@ -71,7 +71,7 @@ function FileUpload({ onFileSelect, onRemove }) {
         };
 
         reader.onerror = () => {
-          toast.error("Failed to read file");
+          toast.error("Không thể đọc file");
           setIsUploading(false);
           setUploadProgress(0);
         };
@@ -90,7 +90,7 @@ function FileUpload({ onFileSelect, onRemove }) {
             setIsUploading(false);
             setUploadProgress(100);
           } else {
-            toast.error("Failed to load file");
+            toast.error("Không thể tải file");
             setIsUploading(false);
             setUploadProgress(0);
           }
@@ -100,7 +100,7 @@ function FileUpload({ onFileSelect, onRemove }) {
       }
     } catch (error) {
       console.error("File upload error:", error);
-      toast.error(error.message || "Failed to upload file. Please try again.");
+      toast.error(error.message || "Không thể tải lên file. Vui lòng thử lại.");
       setIsUploading(false);
       setUploadProgress(0);
       if (fileInputRef.current) {
@@ -183,7 +183,7 @@ function FileUpload({ onFileSelect, onRemove }) {
         className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-600 hover:text-gray-900 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <UploadIcon className="w-5 h-5" />
-        <span>Upload File</span>
+        <span>Tải lên file</span>
       </button>
     </div>
   );

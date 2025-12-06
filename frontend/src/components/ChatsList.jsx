@@ -29,10 +29,13 @@ function ChatsList({ filterUnread = false }) {
           onClick={() => setSelectedUser(chat)}
         >
           <div className="flex items-center gap-3">
-            <div className={`avatar ${onlineUsers.includes(chat._id) ? "online" : "offline"} relative`}>
-              <div className="size-12 rounded-full">
+            <div className="relative">
+              <div className="size-12 rounded-full overflow-hidden">
                 <img src={chat.profilePic || "/avatar.png"} alt={chat.fullName} />
               </div>
+              <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+                onlineUsers.includes(chat._id) ? "bg-green-500" : "bg-gray-400"
+              }`}></div>
               {chat.unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
                   {chat.unreadCount > 99 ? '99+' : chat.unreadCount}

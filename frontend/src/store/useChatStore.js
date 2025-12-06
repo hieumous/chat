@@ -102,7 +102,7 @@ export const useChatStore = create((set, get) => ({
       const res = await axiosInstance.get("/groups/my-groups");
       set({ groups: res.data });
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to load groups");
+      toast.error(error.response?.data?.message || "Không thể tải danh sách nhóm");
     } finally {
       set({ isGroupsLoading: false });
     }
@@ -115,10 +115,10 @@ export const useChatStore = create((set, get) => ({
       });
       const { groups } = get();
       set({ groups: [res.data, ...groups] });
-      toast.success("Group created successfully!");
+      toast.success("Tạo nhóm thành công!");
       return res.data;
     } catch (error) {
-      const errorMessage = error.response?.data?.message || "Failed to create group";
+      const errorMessage = error.response?.data?.message || "Không thể tạo nhóm";
       toast.error(errorMessage);
       throw error;
     }
@@ -135,46 +135,56 @@ export const useChatStore = create((set, get) => ({
         .slice(0, 3);
       set({ messages, pinnedMessages: pinned });
     } catch (error) {
-      toast.error(error.response?.data?.message || "Something went wrong");
+      toast.error(error.response?.data?.message || "Đã xảy ra lỗi");
     } finally {
       set({ isMessagesLoading: false });
     }
   },
 
-  sendGroupMessage: async (groupId, messageData) => {
+  sendGroupMessage: async (groupId, messageData, isRetry = false, existingTempId = null) => {
     const { selectedGroup, messages } = get();
     const { authUser } = useAuthStore.getState();
 
     if (!selectedGroup || selectedGroup._id !== groupId) {
-      toast.error("Please select a group to send message");
+      toast.error("Vui lòng chọn nhóm để gửi tin nhắn");
       return;
     }
 
-    const tempId = `temp-${Date.now()}`;
+    const tempId = isRetry && existingTempId ? existingTempId : `temp-${Date.now()}`;
 
-    const optimisticMessage = {
-      _id: tempId,
-      senderId: authUser._id,
-      groupId: groupId,
-      text: messageData.text || "",
-      image: messageData.image || "",
-      file: messageData.fileUrl ? {
-        fileUrl: messageData.fileUrl,
-        fileName: messageData.fileName,
-        fileType: messageData.fileType,
-        fileSize: messageData.fileSize,
-      } : messageData.file ? {
-        fileUrl: messageData.file, // Base64 fallback
-        fileName: messageData.fileName,
-        fileType: messageData.fileType,
-        fileSize: messageData.fileSize,
-      } : null,
-      createdAt: new Date().toISOString(),
-      isOptimistic: true,
-    };
-    
+    // Nếu là retry, không tạo optimistic message mới, chỉ update trạng thái
+    if (!isRetry) {
+      const optimisticMessage = {
+        _id: tempId,
+        senderId: authUser._id,
+        groupId: groupId,
+        text: messageData.text || "",
+        image: messageData.image || "",
+        file: messageData.fileUrl ? {
+          fileUrl: messageData.fileUrl,
+          fileName: messageData.fileName,
+          fileType: messageData.fileType,
+          fileSize: messageData.fileSize,
+        } : messageData.file ? {
+          fileUrl: messageData.file, // Base64 fallback
+          fileName: messageData.fileName,
+          fileType: messageData.fileType,
+          fileSize: messageData.fileSize,
+        } : null,
+        createdAt: new Date().toISOString(),
+        isOptimistic: true,
+      };
+      
 
-    set({ messages: [...messages, optimisticMessage] });
+      set({ messages: [...messages, optimisticMessage] });
+    } else {
+      // Khi retry, chỉ update trạng thái upload của message cũ
+      set({ 
+        isUploading: true,
+        uploadProgress: 0,
+        uploadError: null
+      });
+    }
 
     try {
       // Check if file is already uploaded (has fileUrl) or needs upload (has base64 file)
@@ -327,9 +337,9 @@ export const useChatStore = create((set, get) => ({
     set({ uploadError: null, uploadProgress: 0 });
     
     if (pendingUpload.type === 'message') {
-      await get().sendMessage(pendingUpload.messageData);
+      await get().sendMessage(pendingUpload.messageData, true, pendingUpload.tempId);
     } else if (pendingUpload.type === 'group') {
-      await get().sendGroupMessage(pendingUpload.groupId, pendingUpload.messageData);
+      await get().sendGroupMessage(pendingUpload.groupId, pendingUpload.messageData, true, pendingUpload.tempId);
     }
   },
 
@@ -379,7 +389,7 @@ export const useChatStore = create((set, get) => ({
         }
       }
       
-      toast.success("Member removed successfully");
+      toast.success("Đã xóa thành viên thành công");
       return true;
     } catch (error) {
       const errorMessage = error.response?.data?.message || "Failed to remove member";
@@ -409,7 +419,7 @@ export const useChatStore = create((set, get) => ({
         set({ selectedGroup: res.data });
       }
       
-      toast.success(`Group is now ${res.data.isPublic ? "public" : "private"}`);
+      toast.success(`Nhóm hiện là ${res.data.isPublic ? "công khai" : "riêng tư"}`);
       return res.data;
     } catch (error) {
       console.error("Toggle privacy error:", error);
@@ -550,7 +560,7 @@ export const useChatStore = create((set, get) => ({
       });
     } catch (error) {
       console.error("Add reaction error:", error);
-      toast.error(error.response?.data?.message || "Failed to add reaction");
+      toast.error(error.response?.data?.message || "Không thể thêm phản ứng");
     }
   },
 
@@ -574,7 +584,7 @@ export const useChatStore = create((set, get) => ({
       });
     } catch (error) {
       console.error("Remove reaction error:", error);
-      toast.error(error.response?.data?.message || "Failed to remove reaction");
+      toast.error(error.response?.data?.message || "Không thể xóa phản ứng");
     }
   },
 
@@ -589,48 +599,58 @@ export const useChatStore = create((set, get) => ({
         .slice(0, 3);
       set({ messages, pinnedMessages: pinned });
     } catch (error) {
-      toast.error(error.response?.data?.message || "Something went wrong");
+      toast.error(error.response?.data?.message || "Đã xảy ra lỗi");
     } finally {
       set({ isMessagesLoading: false });
     }
   },
 
-  sendMessage: async (messageData) => {
+  sendMessage: async (messageData, isRetry = false, existingTempId = null) => {
     const { selectedUser, messages } = get();
     const { authUser } = useAuthStore.getState();
 
     if (!selectedUser) {
-      toast.error("Please select a user to send message");
+      toast.error("Vui lòng chọn người dùng để gửi tin nhắn");
       return;
     }
 
-    const tempId = `temp-${Date.now()}`;
+    const tempId = isRetry && existingTempId ? existingTempId : `temp-${Date.now()}`;
 
-    const { replyingTo } = get();
-    const optimisticMessage = {
-      _id: tempId,
-      senderId: authUser._id,
-      receiverId: selectedUser._id,
-      text: messageData.text || "",
-      image: messageData.image || "",
-      file: messageData.fileUrl ? {
-        fileUrl: messageData.fileUrl,
-        fileName: messageData.fileName,
-        fileType: messageData.fileType,
-        fileSize: messageData.fileSize,
-      } : messageData.file ? {
-        fileUrl: messageData.file, // Base64 fallback
-        fileName: messageData.fileName,
-        fileType: messageData.fileType,
-        fileSize: messageData.fileSize,
-      } : null,
-      replyTo: replyingTo || undefined, // Include replyTo in optimistic message
-      createdAt: new Date().toISOString(),
-      isOptimistic: true, // flag to identify optimistic messages (optional)
-    };
-    
-    // Immediately update the UI by adding the message
-    set({ messages: [...messages, optimisticMessage] });
+    // Nếu là retry, không tạo optimistic message mới, chỉ update trạng thái
+    if (!isRetry) {
+      const { replyingTo } = get();
+      const optimisticMessage = {
+        _id: tempId,
+        senderId: authUser._id,
+        receiverId: selectedUser._id,
+        text: messageData.text || "",
+        image: messageData.image || "",
+        file: messageData.fileUrl ? {
+          fileUrl: messageData.fileUrl,
+          fileName: messageData.fileName,
+          fileType: messageData.fileType,
+          fileSize: messageData.fileSize,
+        } : messageData.file ? {
+          fileUrl: messageData.file, // Base64 fallback
+          fileName: messageData.fileName,
+          fileType: messageData.fileType,
+          fileSize: messageData.fileSize,
+        } : null,
+        replyTo: replyingTo || undefined, // Include replyTo in optimistic message
+        createdAt: new Date().toISOString(),
+        isOptimistic: true, // flag to identify optimistic messages (optional)
+      };
+      
+      // Immediately update the UI by adding the message
+      set({ messages: [...messages, optimisticMessage] });
+    } else {
+      // Khi retry, chỉ update trạng thái upload của message cũ
+      set({ 
+        isUploading: true,
+        uploadProgress: 0,
+        uploadError: null
+      });
+    }
 
     try {
       // Check if file is already uploaded (has fileUrl) or needs upload (has base64 file)
@@ -871,7 +891,7 @@ export const useChatStore = create((set, get) => ({
       const groupExists = groups.some(g => g._id === group._id);
       if (!groupExists) {
         set({ groups: [group, ...groups] });
-        toast.success(`You've been added to ${group.name}`);
+        toast.success(`Bạn đã được thêm vào ${group.name}`);
       }
     });
 
@@ -881,7 +901,7 @@ export const useChatStore = create((set, get) => ({
       set({ groups: groups.filter(g => g._id !== data.groupId) });
       if (selectedGroup && selectedGroup._id === data.groupId) {
         set({ selectedGroup: null, messages: [] });
-        toast.error("You've been removed from this group");
+        toast.error("Bạn đã bị xóa khỏi nhóm này");
       }
     });
 
@@ -1256,7 +1276,7 @@ export const useChatStore = create((set, get) => ({
       
       set({ messages: updatedMessages, pinnedMessages: updatedPinned });
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to pin/unpin message");
+      toast.error(error.response?.data?.message || "Không thể ghim/hủy ghim tin nhắn");
     }
   },
 
@@ -1275,7 +1295,7 @@ export const useChatStore = create((set, get) => ({
       );
       set({ messages: updatedMessages });
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to star/unstar message");
+      toast.error(error.response?.data?.message || "Không thể đánh dấu/hủy đánh dấu tin nhắn");
     }
   },
 

@@ -69,6 +69,19 @@ const messageSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    call: {
+      callType: {
+        type: String,
+        enum: ["video", "audio"],
+      },
+      duration: {
+        type: Number, // Duration in seconds
+      },
+      status: {
+        type: String,
+        enum: ["missed", "answered", "rejected"],
+      },
+    },
   },
   { timestamps: true }
 );

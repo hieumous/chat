@@ -26,19 +26,19 @@ function CreateGroupModal({ isOpen, onClose }) {
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
+      toast.error("Vui lòng chọn file hình ảnh");
       return;
     }
 
     const maxSize = 5 * 1024 * 1024; // 5MB
     if (file.size > maxSize) {
-      toast.error("Image size should be less than 5MB");
+      toast.error("Kích thước hình ảnh phải nhỏ hơn 5MB");
       return;
     }
 
     const reader = new FileReader();
     reader.onerror = () => {
-      toast.error("Failed to read image file");
+      toast.error("Không thể đọc file hình ảnh");
     };
     reader.onloadend = () => {
       if (reader.result) {
@@ -60,7 +60,7 @@ function CreateGroupModal({ isOpen, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!groupName.trim()) {
-      toast.error("Group name is required");
+      toast.error("Tên nhóm là bắt buộc");
       return;
     }
 
@@ -97,7 +97,7 @@ function CreateGroupModal({ isOpen, onClose }) {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">Create New Group</h2>
+          <h2 className="text-xl font-semibold text-gray-900">Tạo nhóm mới</h2>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
@@ -143,14 +143,14 @@ function CreateGroupModal({ isOpen, onClose }) {
           {/* Group Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Group Name *
+              Tên nhóm *
             </label>
             <input
               type="text"
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900"
-              placeholder="Enter group name"
+              placeholder="Nhập tên nhóm"
               required
               disabled={isCreating}
             />
@@ -159,13 +159,13 @@ function CreateGroupModal({ isOpen, onClose }) {
           {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description (Optional)
+              Mô tả (Tùy chọn)
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900"
-              placeholder="Enter group description"
+              placeholder="Nhập mô tả nhóm"
               rows="3"
               disabled={isCreating}
             />
@@ -182,11 +182,11 @@ function CreateGroupModal({ isOpen, onClose }) {
                 disabled={isCreating}
               />
               <div>
-                <span className="text-sm font-medium text-gray-700">Public Group</span>
+                <span className="text-sm font-medium text-gray-700">Nhóm công khai</span>
                 <p className="text-xs text-gray-500">
                   {isPublic 
-                    ? "All members can add new people" 
-                    : "Only admin can add new people"}
+                    ? "Tất cả thành viên có thể thêm người mới" 
+                    : "Chỉ quản trị viên có thể thêm người mới"}
                 </p>
               </div>
             </label>
@@ -195,11 +195,11 @@ function CreateGroupModal({ isOpen, onClose }) {
           {/* Select Members */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Members ({selectedMembers.length} selected)
+              Chọn thành viên ({selectedMembers.length} đã chọn)
             </label>
             <div className="border border-gray-300 rounded-lg p-3 max-h-48 overflow-y-auto">
               {availableContacts.length === 0 ? (
-                <p className="text-gray-500 text-sm">No contacts available</p>
+                <p className="text-gray-500 text-sm">Không có liên hệ nào</p>
               ) : (
                 <div className="space-y-2">
                   {availableContacts.map((contact) => (
@@ -235,14 +235,14 @@ function CreateGroupModal({ isOpen, onClose }) {
               className="flex-1 border border-gray-300 text-gray-700 rounded-lg px-4 py-2 hover:bg-gray-50"
               disabled={isCreating}
             >
-              Cancel
+              Hủy
             </button>
             <button
               type="submit"
               className="flex-1 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-lg px-4 py-2 font-medium hover:from-cyan-600 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isCreating || !groupName.trim()}
             >
-              {isCreating ? "Creating..." : "Create Group"}
+              {isCreating ? "Đang tạo..." : "Tạo nhóm"}
             </button>
           </div>
         </form>

@@ -44,14 +44,16 @@ function ChatHeader({ onToggleRightSidebar = () => {} }) {
         <div className="flex items-center space-x-3">
         {isUserChat ? (
           <>
-            <div className={`avatar ${isOnline ? "online" : "offline"}`}>
-              <div className="w-12 rounded-full">
+            <div className="relative">
+              <div className="w-12 h-12 rounded-full overflow-hidden">
                 <img src={selectedUser.profilePic || "/avatar.png"} alt={selectedUser.fullName} />
               </div>
+              <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+                isOnline ? "bg-green-500" : "bg-gray-400"
+              }`}></div>
             </div>
             <div>
               <h3 className="text-gray-900 font-medium">{selectedUser.fullName}</h3>
-              <p className="text-gray-600 text-sm">{isOnline ? "Online" : "Offline"}</p>
             </div>
           </>
         ) : (
@@ -66,7 +68,7 @@ function ChatHeader({ onToggleRightSidebar = () => {} }) {
             <div>
               <h3 className="text-gray-900 font-medium">{selectedGroup.name}</h3>
               <p className="text-gray-600 text-sm">
-                {selectedGroup.members?.length || 0} members
+                {selectedGroup.members?.length || 0} thành viên
               </p>
             </div>
           </>
@@ -85,7 +87,7 @@ function ChatHeader({ onToggleRightSidebar = () => {} }) {
               }}
               disabled={!isOnline}
               className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Video Call"
+              title="Gọi video"
             >
               <VideoIcon className="w-5 h-5" />
             </button>
@@ -104,7 +106,7 @@ function ChatHeader({ onToggleRightSidebar = () => {} }) {
             {/* Video Call Button */}
             <button
               className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
-              title="Video Call"
+              title="Gọi video"
             >
               <VideoIcon className="w-5 h-5" />
             </button>
@@ -147,11 +149,11 @@ function ChatHeader({ onToggleRightSidebar = () => {} }) {
                   <button
                     onClick={() => scrollToMessage(pinnedMessages[0]._id)}
                     className="w-full text-left pr-6"
-                    title="Click to scroll to message"
+                    title="Nhấn để cuộn đến tin nhắn"
                   >
                     <div className="flex items-center gap-1.5">
                       <p className="text-xs text-gray-900 font-medium truncate">
-                        {pinnedMessages[0].senderId?.fullName || "Unknown"}: {pinnedMessages[0].text || (pinnedMessages[0].image ? "📷 Hình ảnh" : pinnedMessages[0].file ? `📎 ${pinnedMessages[0].file.fileName}` : "Tin nhắn")}
+                        {pinnedMessages[0].senderId?.fullName || "Không xác định"}: {pinnedMessages[0].text || (pinnedMessages[0].image ? "📷 Hình ảnh" : pinnedMessages[0].file ? `📎 ${pinnedMessages[0].file.fileName}` : "Tin nhắn")}
                       </p>
                       {pinnedMessages[0].pinnedBy && (
                         <span className="text-xs text-gray-500 flex-shrink-0">
@@ -204,11 +206,11 @@ function ChatHeader({ onToggleRightSidebar = () => {} }) {
                       <button
                         onClick={() => scrollToMessage(msg._id)}
                         className="w-full text-left pr-6"
-                        title="Click to scroll to message"
+                        title="Nhấn để cuộn đến tin nhắn"
                       >
                         <div className="flex items-center gap-1.5">
                           <p className="text-xs text-gray-900 font-medium truncate">
-                            {msg.senderId?.fullName || "Unknown"}: {msg.text || (msg.image ? "📷 Hình ảnh" : msg.file ? `📎 ${msg.file.fileName}` : "Tin nhắn")}
+                            {msg.senderId?.fullName || "Không xác định"}: {msg.text || (msg.image ? "📷 Hình ảnh" : msg.file ? `📎 ${msg.file.fileName}` : "Tin nhắn")}
                           </p>
                           {msg.pinnedBy && (
                             <span className="text-xs text-gray-500 flex-shrink-0">

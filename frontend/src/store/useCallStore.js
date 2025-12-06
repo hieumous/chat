@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { useAuthStore } from "./useAuthStore";
 import { useChatStore } from "./useChatStore";
+import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
 
 // Dynamic import for simple-peer to avoid SSR issues
@@ -40,6 +41,7 @@ export const useCallStore = create((set, get) => ({
   receiverId: null,
   callHandlers: null, // Store socket handlers for cleanup
   otherUser: null, // Store other user info (caller or receiver) for display
+  callStartTime: null, // Track when call started to calculate duration
 
   // Start a call
   startCall: async (receiverId, callType) => {
@@ -48,20 +50,20 @@ export const useCallStore = create((set, get) => ({
     
     if (!socket || !authUser) {
       console.error("No socket or authUser");
-      toast.error("Please login to make a call");
+      toast.error("Vui lòng đăng nhập để thực hiện cuộc gọi");
       return;
     }
 
     if (typeof window === "undefined") {
       console.error("Window is undefined");
-      toast.error("Call feature is not available");
+      toast.error("Tính năng gọi không khả dụng");
       return;
     }
 
     // Check if socket is connected
     if (!socket.connected) {
       console.error("Socket is not connected");
-      toast.error("Connection lost. Please refresh the page and try again.");
+      toast.error("Mất kết nối. Vui lòng làm mới trang và thử lại.");
       return;
     }
 
@@ -71,7 +73,7 @@ export const useCallStore = create((set, get) => ({
       const Peer = await loadSimplePeer();
       
       if (!Peer) {
-        toast.error("Call feature failed to load, please refresh the page");
+        toast.error("Không thể tải tính năng gọi, vui lòng làm mới trang");
         return;
       }
       
@@ -88,7 +90,8 @@ export const useCallStore = create((set, get) => ({
                       chats.find(c => c._id === receiverId);
       }
       
-      set({ isCalling: true, callType, receiverId, otherUser: receiverInfo });
+      // Set call start time when initiating call
+      set({ isCalling: true, callType, receiverId, otherUser: receiverInfo, callStartTime: Date.now() });
       
       // Get user media
       let stream;
@@ -101,11 +104,11 @@ export const useCallStore = create((set, get) => ({
         console.error("Error getting user media:", mediaError);
         set({ isCalling: false, stream: null, callType: null, receiverId: null });
         if (mediaError.name === "NotAllowedError") {
-          toast.error("Camera/microphone permission denied. Please allow access and try again.");
+          toast.error("Quyền truy cập camera/microphone bị từ chối. Vui lòng cho phép và thử lại.");
         } else if (mediaError.name === "NotFoundError") {
-          toast.error("No camera/microphone found. Please check your device.");
+          toast.error("Không tìm thấy camera/microphone. Vui lòng kiểm tra thiết bị của bạn.");
         } else {
-          toast.error("Failed to access camera/microphone. Please check your device settings.");
+          toast.error("Không thể truy cập camera/microphone. Vui lòng kiểm tra cài đặt thiết bị.");
         }
         return;
       }
@@ -143,23 +146,44 @@ export const useCallStore = create((set, get) => ({
         // Clean up stream
         stream.getTracks().forEach(track => track.stop());
         set({ isCalling: false, stream: null, callType: null, receiverId: null });
-        toast.error("Failed to initialize call connection. Please try again.");
+        toast.error("Không thể khởi tạo kết nối cuộc gọi. Vui lòng thử lại.");
         return;
       }
 
       peer.on("signal", (data) => {
         console.log("Peer signal generated, sending to server", data);
-        if (socket && socket.connected) {
-          socket.emit("callUser", {
+        // Get fresh socket from store in case it changed
+        const { socket: currentSocket, authUser: currentAuthUser } = useAuthStore.getState();
+        console.log("🔍 Checking socket state:", {
+          hasSocket: !!currentSocket,
+          socketConnected: currentSocket?.connected,
+          socketId: currentSocket?.id,
+          hasAuthUser: !!currentAuthUser
+        });
+        if (currentSocket && currentSocket.connected) {
+          const callData = {
             userToCall: receiverId,
             signalData: data,
-            from: authUser._id,
-            name: authUser.fullName,
+            from: currentAuthUser._id,
+            name: currentAuthUser.fullName,
             callType: callType,
+          };
+          console.log("📞 Emitting callUser event:", {
+            userToCall: receiverId,
+            from: currentAuthUser._id,
+            name: currentAuthUser.fullName,
+            callType: callType,
+            socketConnected: currentSocket.connected,
+            socketId: currentSocket.id
           });
+          currentSocket.emit("callUser", callData);
+          console.log("✅ callUser event emitted successfully");
         } else {
-          console.error("Socket not connected when trying to emit callUser");
-          toast.error("Connection lost. Please refresh and try again.");
+          console.error("❌ Socket not connected when trying to emit callUser", {
+            hasSocket: !!currentSocket,
+            socketConnected: currentSocket?.connected
+          });
+          toast.error("Mất kết nối. Vui lòng làm mới và thử lại.");
           get().endCall();
         }
       });
@@ -168,27 +192,37 @@ export const useCallStore = create((set, get) => ({
         console.log("Remote stream received", stream);
         console.log("Stream tracks:", stream.getTracks());
         console.log("Audio tracks:", stream.getAudioTracks());
-        set({ callAccepted: true, remoteStream: stream });
+        const startTime = get().callStartTime || Date.now();
+        set({ callAccepted: true, remoteStream: stream, callStartTime: startTime });
       });
 
       peer.on("error", (err) => {
         console.error("Peer error:", err);
-        toast.error("Call connection error");
+        toast.error("Lỗi kết nối cuộc gọi");
         get().endCall();
       });
 
       peer.on("close", () => {
         console.log("Peer connection closed - ending call");
-        // When peer closes, it means the other side disconnected
-        // Don't send notification since connection is already closed
-        get().endCall(true);
+        // When peer closes, check if call was answered
+        // If answered, we should still send call message with duration
+        const { callAccepted, callStartTime } = get();
+        if (callAccepted && callStartTime) {
+          // Call was answered, send message before ending
+          console.log("📞 Call was answered, sending message before ending");
+          // endCall(false) will send the message
+          get().endCall(false);
+        } else {
+          // Call was not answered, don't send notification
+          get().endCall(true);
+        }
       });
 
       // Listen for call accepted
       const handleCallAccepted = (signal) => {
         // Keep receiverId when call is accepted so we can notify them when ending
         const currentReceiverId = get().receiverId;
-        set({ callAccepted: true, receiverId: currentReceiverId });
+        set({ callAccepted: true, receiverId: currentReceiverId, callStartTime: Date.now() });
         if (peer) {
           peer.signal(signal);
         }
@@ -196,8 +230,35 @@ export const useCallStore = create((set, get) => ({
 
       // Listen for call rejected
       const handleCallRejected = () => {
-        toast.error("Call rejected");
-        get().endCall();
+        toast.error("Cuộc gọi bị từ chối");
+        // Người gọi nhận được reject - gửi tin nhắn "missed" từ phía người gọi
+        // Chỉ gửi tin nhắn nếu đang là người gọi (isCalling = true)
+        const { receiverId, callType, isCalling, callStartTime } = get();
+        
+        if (isCalling && callType && receiverId) {
+          const { selectedUser, selectedGroup, sendMessage, sendGroupMessage } = useChatStore.getState();
+          // Tính thời lượng từ lúc bắt đầu cuộc gọi đến khi bị từ chối
+          const duration = callStartTime ? Math.floor((Date.now() - callStartTime) / 1000) : 0;
+          const callMessage = {
+            call: {
+              callType: callType,
+              duration: duration,
+              status: "missed"
+            }
+          };
+          
+          if (selectedUser && selectedUser._id === receiverId) {
+            sendMessage(callMessage).catch(error => {
+              console.error("Error sending rejected call message:", error);
+            });
+          } else if (selectedGroup && selectedGroup._id === receiverId) {
+            sendGroupMessage(receiverId, callMessage).catch(error => {
+              console.error("Error sending rejected group call message:", error);
+            });
+          }
+        }
+        
+        get().endCall(true); // Skip notification vì đã gửi tin nhắn rồi (nếu có)
       };
 
       socket.on("callAccepted", handleCallAccepted);
@@ -208,7 +269,7 @@ export const useCallStore = create((set, get) => ({
 
       set({ call: peer });
       console.log("Call initiated, waiting for answer...");
-      toast.success(`Calling...`);
+      toast.success(`Đang gọi...`);
     } catch (error) {
       console.error("Error starting call:", error);
       // Clean up stream if it exists
@@ -218,10 +279,10 @@ export const useCallStore = create((set, get) => ({
       }
       
       const errorMessage = error.name === "NotAllowedError" 
-        ? "Camera/microphone permission denied. Please allow access and try again."
+        ? "Quyền truy cập camera/microphone bị từ chối. Vui lòng cho phép và thử lại."
         : error.name === "NotFoundError"
-        ? "No camera/microphone found. Please check your device."
-        : error.message || "Failed to start call. Please try again.";
+        ? "Không tìm thấy camera/microphone. Vui lòng kiểm tra thiết bị của bạn."
+        : error.message || "Không thể bắt đầu cuộc gọi. Vui lòng thử lại.";
       toast.error(errorMessage);
       set({ isCalling: false, stream: null, callType: null, receiverId: null, call: null });
     }
@@ -248,7 +309,7 @@ export const useCallStore = create((set, get) => ({
       const Peer = await loadSimplePeer();
       
       if (!Peer) {
-        toast.error("Call feature failed to load, please refresh the page");
+        toast.error("Không thể tải tính năng gọi, vui lòng làm mới trang");
         return;
       }
 
@@ -297,12 +358,13 @@ export const useCallStore = create((set, get) => ({
         console.log("Remote stream received", stream);
         console.log("Stream tracks:", stream.getTracks());
         console.log("Audio tracks:", stream.getAudioTracks());
-        set({ callAccepted: true, remoteStream: stream });
+        const startTime = get().callStartTime || Date.now();
+        set({ callAccepted: true, remoteStream: stream, callStartTime: startTime });
       });
 
       peer.on("error", (err) => {
         console.error("Peer error:", err);
-        toast.error("Call connection error");
+        toast.error("Lỗi kết nối cuộc gọi");
         get().endCall();
       });
 
@@ -311,17 +373,25 @@ export const useCallStore = create((set, get) => ({
         const currentState = get();
         // Only auto-end if call is still active and we didn't just end it ourselves
         if (!currentState.callEnded && (currentState.callAccepted || currentState.isCalling || currentState.receivingCall)) {
-          // When peer closes, it means the other side disconnected
-          // Don't send notification since connection is already closed
-          get().endCall(true);
+          // When peer closes, check if call was answered
+          // If answered, we should still send call message with duration
+          if (currentState.callAccepted && currentState.callStartTime) {
+            // Call was answered, send message before ending
+            console.log("📞 Call was answered, sending message before ending");
+            // endCall(false) will send the message
+            get().endCall(false);
+          } else {
+            // Call was not answered, don't send notification
+            get().endCall(true);
+          }
         }
       });
 
       peer.signal(callerSignal);
       // Keep caller info when accepting call so we can notify them when ending
       const currentCaller = get().caller;
-      set({ call: peer, receivingCall: false, caller: currentCaller });
-      toast.success("Call answered");
+      set({ call: peer, receivingCall: false, caller: currentCaller, callStartTime: Date.now() });
+      toast.success("Đã trả lời cuộc gọi");
     } catch (error) {
       console.error("Error answering call:", error);
       toast.error("Failed to access camera/microphone. Please check permissions.");
@@ -336,8 +406,9 @@ export const useCallStore = create((set, get) => ({
     const actualSkipNotification = shouldSkip && skipNotification !== false;
     
     const state = get();
-    const { call, stream, receiverId, caller, callAccepted, isCalling, receivingCall } = state;
-    const { socket } = useAuthStore.getState();
+    const { call, stream, receiverId, caller, callAccepted, isCalling, receivingCall, callType, callStartTime } = state;
+    const { socket, authUser } = useAuthStore.getState();
+    const { selectedUser, sendMessage } = useChatStore.getState();
 
     console.log("endCall called", { 
       skipNotification: actualSkipNotification, 
@@ -481,6 +552,82 @@ export const useCallStore = create((set, get) => ({
       // Don't remove callEnded here - it's handled in CallModal.jsx
     }
 
+    // Send call message - CHỈ NGƯỜI GỌI gửi tin nhắn
+    // Nếu skipNotification = true, nghĩa là phía kia đã gửi rồi, không cần gửi nữa
+    console.log("📞 Checking if should send call message:", {
+      callType,
+      actualSkipNotification,
+      isCalling,
+      callAccepted,
+      callStartTime,
+      receiverId
+    });
+    
+    if (callType && !actualSkipNotification && isCalling) {
+      // Chỉ người gọi mới gửi tin nhắn
+      const targetId = receiverId;
+      const { selectedUser, selectedGroup, sendMessage, sendGroupMessage } = useChatStore.getState();
+      
+      if (targetId) {
+        let callMessage;
+        
+        if (callAccepted && callStartTime) {
+          // Call was answered - send with duration
+          const duration = Math.floor((Date.now() - callStartTime) / 1000);
+          console.log("📞 Sending answered call message with duration:", duration);
+          callMessage = {
+            call: {
+              callType: callType,
+              duration: duration,
+              status: "answered"
+            }
+          };
+        } else if (!callAccepted) {
+          // Call was not answered - send as missed
+          // Tính thời lượng từ lúc bắt đầu cuộc gọi đến khi kết thúc
+          const duration = callStartTime ? Math.floor((Date.now() - callStartTime) / 1000) : 0;
+          console.log("📞 Sending missed call message with duration:", duration);
+          callMessage = {
+            call: {
+              callType: callType,
+              duration: duration,
+              status: "missed"
+            }
+          };
+        }
+        
+        // Send call message asynchronously (don't wait for it)
+        if (callMessage) {
+          console.log("📞 Sending call message:", callMessage);
+          if (selectedUser && selectedUser._id === targetId) {
+            sendMessage(callMessage).then(() => {
+              console.log("✅ Call message sent successfully");
+            }).catch(error => {
+              console.error("❌ Error sending call message:", error);
+            });
+          } else if (selectedGroup && selectedGroup._id === targetId) {
+            sendGroupMessage(targetId, callMessage).then(() => {
+              console.log("✅ Group call message sent successfully");
+            }).catch(error => {
+              console.error("❌ Error sending group call message:", error);
+            });
+          } else {
+            console.warn("⚠️ No selected user or group to send call message to");
+          }
+        } else {
+          console.warn("⚠️ No call message to send");
+        }
+      } else {
+        console.warn("⚠️ No targetId to send call message to");
+      }
+    } else {
+      console.log("⏭️ Skipping call message:", {
+        hasCallType: !!callType,
+        skipNotification: actualSkipNotification,
+        isCalling
+      });
+    }
+
     set({
       call: null,
       callAccepted: false,
@@ -495,6 +642,7 @@ export const useCallStore = create((set, get) => ({
       receiverId: null,
       callHandlers: null,
       otherUser: null,
+      callStartTime: null,
     });
 
     // Reset callEnded after a moment
@@ -511,6 +659,7 @@ export const useCallStore = create((set, get) => ({
     if (socket && caller) {
       const callerId = typeof caller === "object" ? caller.id : caller;
       socket.emit("rejectCall", { to: callerId });
+      // Không gửi tin nhắn ở đây - để người gọi gửi tin nhắn "missed" khi nhận được reject
     }
 
     set({
@@ -518,9 +667,10 @@ export const useCallStore = create((set, get) => ({
       caller: null,
       callerSignal: null,
       callType: null,
+      callStartTime: null,
     });
 
-    toast.info("Call rejected");
+    toast.info("Cuộc gọi bị từ chối");
   },
 }));
 

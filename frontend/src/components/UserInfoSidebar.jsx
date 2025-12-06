@@ -66,7 +66,7 @@ function UserInfoSidebar({ onClose }) {
         {/* User Profile */}
         <div className="p-4 border-b border-gray-200">
           <div className="flex flex-col items-center">
-            <div className={`relative w-20 h-20 rounded-full mb-3 ${isOnline ? "online" : "offline"}`}>
+            <div className="relative mb-3">
               <div className="w-20 h-20 rounded-full overflow-hidden">
                 <img 
                   src={selectedUser.profilePic || "/avatar.png"} 
@@ -74,11 +74,11 @@ function UserInfoSidebar({ onClose }) {
                   className="w-full h-full object-cover"
                 />
               </div>
+              <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${
+                isOnline ? "bg-green-500" : "bg-gray-400"
+              }`}></div>
             </div>
             <h3 className="text-lg font-semibold text-gray-900">{selectedUser.fullName}</h3>
-            <p className="text-sm text-gray-600 mt-1">
-              {isOnline ? "Online" : "Offline"}
-            </p>
             {selectedUser.email && (
               <p className="text-xs text-gray-500 mt-1">{selectedUser.email}</p>
             )}

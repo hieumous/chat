@@ -46,6 +46,10 @@ io.on("connection", (socket) => {
     const { userToCall, signalData, from, name, callType } = data;
     const receiverSocketId = userSocketMap[userToCall];
 
+    console.log(`📞 CallUser event received from ${name} (${from}) to user ${userToCall}`);
+    console.log(`   Receiver socketId: ${receiverSocketId || 'NOT FOUND'}`);
+    console.log(`   Available users in map:`, Object.keys(userSocketMap));
+
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("incomingCall", {
         signal: signalData,
@@ -53,9 +57,11 @@ io.on("connection", (socket) => {
         name,
         callType,
       });
+      console.log(`✅ IncomingCall event sent to user ${userToCall} (socketId: ${receiverSocketId})`);
       console.log(`Call initiated from ${name} to user ${userToCall}`);
     } else {
       // User is offline
+      console.log(`❌ User ${userToCall} is offline or not found`);
       io.to(socket.id).emit("userOffline", { message: "User is offline" });
     }
   });

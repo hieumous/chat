@@ -24,15 +24,15 @@ function SignUpPage() {
                 {/* HEADING TEXT */}
                 <div className="text-center mb-8">
                   <MessageCircleIcon className="w-12 h-12 mx-auto text-gray-600 mb-4" />
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Create Account</h2>
-                  <p className="text-gray-600">Sign up for a new account</p>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Tạo tài khoản</h2>
+                  <p className="text-gray-600">Đăng ký tài khoản mới</p>
                 </div>
 
                 {/* FORM */}
                 <form onSubmit={handleSubmit} className="space-y-6">
                   {/* FULL NAME */}
                   <div>
-                    <label className="auth-input-label">Full Name</label>
+                    <label className="auth-input-label">Họ và tên</label>
                     <div className="relative">
                       <UserIcon className="auth-input-icon" />
 
@@ -41,7 +41,7 @@ function SignUpPage() {
                         value={formData.fullName}
                         onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                         className="input"
-                        placeholder="John Doe"
+                        placeholder="Nguyễn Văn A"
                       />
                     </div>
                   </div>
@@ -73,7 +73,7 @@ function SignUpPage() {
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                         className="input"
-                        placeholder="Enter your password"
+                        placeholder="Nhập mật khẩu của bạn"
                       />
                     </div>
                   </div>
@@ -83,14 +83,14 @@ function SignUpPage() {
                     {isSigningUp ? (
                       <LoaderIcon className="w-full h-5 animate-spin text-center" />
                     ) : (
-                      "Create Account"
+                      "Tạo tài khoản"
                     )}
                   </button>
                 </form>
 
                 <div className="mt-6 text-center">
                   <Link to="/login" className="auth-link">
-                    Already have an account? Login
+                    Đã có tài khoản? Đăng nhập
                   </Link>
                 </div>
               </div>
@@ -105,12 +105,12 @@ function SignUpPage() {
                   className="w-full h-auto object-contain"
                 />
                 <div className="mt-6 text-center">
-                  <h3 className="text-xl font-medium text-cyan-600">Start Your Journey Today</h3>
+                  <h3 className="text-xl font-medium text-cyan-600">Bắt đầu hành trình của bạn ngay hôm nay</h3>
 
                   <div className="mt-4 flex justify-center gap-4">
-                    <span className="auth-badge">Free</span>
-                    <span className="auth-badge">Easy Setup</span>
-                    <span className="auth-badge">Private</span>
+                    <span className="auth-badge">Miễn phí</span>
+                    <span className="auth-badge">Dễ dàng</span>
+                    <span className="auth-badge">Riêng tư</span>
                   </div>
                 </div>
               </div>

@@ -20,8 +20,8 @@ function GroupsList({ filterUnread = false }) {
     return (
       <div className="text-center py-8 text-gray-500">
         <UsersIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
-        <p>No groups yet</p>
-        <p className="text-sm">Create a group to start chatting</p>
+        <p>Chưa có nhóm nào</p>
+        <p className="text-sm">Tạo nhóm để bắt đầu trò chuyện</p>
       </div>
     );
   }
@@ -55,7 +55,7 @@ function GroupsList({ filterUnread = false }) {
                 </p>
               ) : (
                 <p className="text-xs text-gray-600 truncate">
-                  {group.members?.length || 0} members
+                  {group.members?.length || 0} thành viên
                 </p>
               )}
             </div>

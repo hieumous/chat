@@ -43,7 +43,7 @@ function GroupMembersModal({ isOpen, onClose, group }) {
       setIsPublic(res.data.isPublic || false);
       setIsAdmin(res.data.isAdmin || false);
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to load group members");
+      toast.error(error.response?.data?.message || "Không thể tải danh sách thành viên");
     } finally {
       setIsLoading(false);
     }
@@ -51,7 +51,7 @@ function GroupMembersModal({ isOpen, onClose, group }) {
 
   const handleAddMembers = async () => {
     if (selectedMembers.length === 0) {
-      toast.error("Please select at least one member to add");
+      toast.error("Vui lòng chọn ít nhất một thành viên để thêm");
       return;
     }
 
@@ -59,7 +59,7 @@ function GroupMembersModal({ isOpen, onClose, group }) {
     try {
       await addMembersToGroup(group._id, selectedMembers);
       
-      toast.success("Members added successfully!");
+      toast.success("Đã thêm thành viên thành công!");
       setSelectedMembers([]);
       setShowAddMembers(false);
       fetchGroupMembers(); // Refresh members list
@@ -89,7 +89,7 @@ function GroupMembersModal({ isOpen, onClose, group }) {
   const canAddMembers = isPublic || isAdmin;
 
   const handleRemoveMember = async (memberId) => {
-    if (!window.confirm("Are you sure you want to remove this member from the group?")) {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa thành viên này khỏi nhóm?")) {
       return;
     }
 
@@ -123,7 +123,7 @@ function GroupMembersModal({ isOpen, onClose, group }) {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">Group Members</h2>
+          <h2 className="text-xl font-semibold text-gray-900">Thành viên nhóm</h2>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
@@ -145,17 +145,17 @@ function GroupMembersModal({ isOpen, onClose, group }) {
                     ? "bg-green-100 text-green-700 hover:bg-green-200"
                     : "bg-orange-100 text-orange-700 hover:bg-orange-200"
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
-                title={isPublic ? "Switch to Private" : "Switch to Public"}
+                title={isPublic ? "Chuyển sang riêng tư" : "Chuyển sang công khai"}
               >
                 {isPublic ? (
                   <>
                     <UnlockIcon className="w-4 h-4" />
-                    Public
+                    Công khai
                   </>
                 ) : (
                   <>
                     <LockIcon className="w-4 h-4" />
-                    Private
+                    Riêng tư
                   </>
                 )}
               </button>
@@ -163,9 +163,9 @@ function GroupMembersModal({ isOpen, onClose, group }) {
           </div>
           <p className="text-xs text-gray-600">
             {isPublic ? (
-              <span className="text-green-600">Public - All members can add people</span>
+              <span className="text-green-600">Công khai - Tất cả thành viên có thể thêm người</span>
             ) : (
-              <span className="text-orange-600">Private - Only admin can add people</span>
+              <span className="text-orange-600">Riêng tư - Chỉ quản trị viên có thể thêm người</span>
             )}
           </p>
         </div>
@@ -179,14 +179,14 @@ function GroupMembersModal({ isOpen, onClose, group }) {
                 className="w-full bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-lg px-4 py-2 font-medium hover:from-cyan-600 hover:to-cyan-700 transition-all flex items-center justify-center gap-2"
               >
                 <PlusIcon className="w-5 h-5" />
-                Add Members
+                Thêm thành viên
               </button>
             ) : (
               <div className="space-y-3">
                 <div className="border border-gray-300 rounded-lg p-3 max-h-48 overflow-y-auto">
                   {availableContacts.length === 0 ? (
                     <p className="text-gray-500 text-sm text-center py-4">
-                      No contacts available to add
+                      Không có liên hệ nào để thêm
                     </p>
                   ) : (
                     <div className="space-y-2">
@@ -220,14 +220,14 @@ function GroupMembersModal({ isOpen, onClose, group }) {
                     }}
                     className="flex-1 border border-gray-300 text-gray-700 rounded-lg px-4 py-2 hover:bg-gray-50"
                   >
-                    Cancel
+                    Hủy
                   </button>
                   <button
                     onClick={handleAddMembers}
                     disabled={isAdding || selectedMembers.length === 0}
                     className="flex-1 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-lg px-4 py-2 font-medium hover:from-cyan-600 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isAdding ? "Adding..." : "Add Selected"}
+                    {isAdding ? "Đang thêm..." : "Thêm đã chọn"}
                   </button>
                 </div>
               </div>
@@ -237,11 +237,11 @@ function GroupMembersModal({ isOpen, onClose, group }) {
 
         {/* Members List */}
         {isLoading ? (
-          <div className="text-center py-8 text-gray-500">Loading members...</div>
+          <div className="text-center py-8 text-gray-500">Đang tải thành viên...</div>
         ) : (
           <div className="space-y-2">
             <h3 className="text-sm font-medium text-gray-700 mb-2">
-              Members ({members.length + 1})
+              Thành viên ({members.length + 1})
             </h3>
             
             {/* Admin */}
@@ -261,7 +261,7 @@ function GroupMembersModal({ isOpen, onClose, group }) {
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-gray-900">{admin.fullName}</span>
                     <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">
-                      Admin
+                      Quản trị viên
                     </span>
                   </div>
                   <p className="text-xs text-gray-600">{admin.email}</p>
@@ -295,7 +295,7 @@ function GroupMembersModal({ isOpen, onClose, group }) {
                         onClick={() => handleRemoveMember(memberId)}
                         disabled={isRemovingMember}
                         className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Remove member"
+                        title="Xóa thành viên"
                       >
                         <TrashIcon className="w-4 h-4" />
                       </button>
@@ -312,7 +312,7 @@ function GroupMembersModal({ isOpen, onClose, group }) {
             onClick={onClose}
             className="w-full border border-gray-300 text-gray-700 rounded-lg px-4 py-2 hover:bg-gray-50"
           >
-            Close
+            Đóng
           </button>
         </div>
       </div>

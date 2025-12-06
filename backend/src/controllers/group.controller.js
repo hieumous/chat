@@ -245,12 +245,12 @@ export const getGroupMessages = async (req, res) => {
 // Send a message to a group
 export const sendGroupMessage = async (req, res) => {
   try {
-    const { text, image, file, fileUrl, fileName, fileType, fileSize, replyTo } = req.body;
+    const { text, image, file, fileUrl, fileName, fileType, fileSize, replyTo, call } = req.body;
     const { groupId } = req.params;
     const senderId = req.user._id;
 
-    if (!text && !image && !file && !fileUrl) {
-      return res.status(400).json({ message: "Text, image, or file is required." });
+    if (!text && !image && !file && !fileUrl && !call) {
+      return res.status(400).json({ message: "Text, image, file, or call is required." });
     }
 
     // Verify group exists and user is a member
@@ -432,6 +432,7 @@ export const sendGroupMessage = async (req, res) => {
       image: imageUrl || "",
       file: fileData,
       replyTo: replyTo || undefined,
+      call: call || undefined,
     });
 
     await newMessage.save();

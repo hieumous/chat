@@ -9,6 +9,7 @@ import CreateGroupModal from "../components/CreateGroupModal";
 import NoConversationPlaceholder from "../components/NoConversationPlaceholder";
 import GroupInfoSidebar from "../components/GroupInfoSidebar";
 import UserInfoSidebar from "../components/UserInfoSidebar";
+import SettingsSidebar from "../components/SettingsSidebar";
 import { PlusIcon, MessageSquareIcon, UsersIcon, CalendarIcon, CloudIcon, CameraIcon, FileIcon, SettingsIcon, SearchIcon } from "lucide-react";
 
 function ChatPage() {
@@ -16,6 +17,7 @@ function ChatPage() {
   const { authUser } = useAuthStore();
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
   const [showRightSidebar, setShowRightSidebar] = useState(false);
+  const [showSettingsSidebar, setShowSettingsSidebar] = useState(false);
   const [chatFilter, setChatFilter] = useState("all"); // "all" or "unread"
 
   // Calculate total unread counts
@@ -32,13 +34,17 @@ function ChatPage() {
     <div className="relative w-full h-screen flex">
       {/* LEFT NAVIGATION BAR */}
       <div className="w-16 bg-gray-50 border-r border-gray-200 flex flex-col items-center py-4 gap-4">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-500 to-cyan-600 flex items-center justify-center overflow-hidden cursor-pointer">
+        <button
+          onClick={() => setShowSettingsSidebar(true)}
+          className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-500 to-cyan-600 flex items-center justify-center overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+          title="Cài đặt"
+        >
           <img 
             src={authUser?.profilePic || "/avatar.png"} 
             alt="Profile" 
             className="w-full h-full object-cover"
           />
-        </div>
+        </button>
         <button
           onClick={() => setActiveTab("chats")}
           className={`p-2 rounded-lg transition-colors relative ${
@@ -78,6 +84,7 @@ function ChatPage() {
         </button>
         <div className="flex-1" />
         <button
+          onClick={() => setShowSettingsSidebar(true)}
           className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
           title="Cài đặt"
         >
@@ -170,6 +177,13 @@ function ChatPage() {
           ) : (
             <UserInfoSidebar onClose={() => setShowRightSidebar(false)} />
           )}
+        </div>
+      )}
+
+      {/* SETTINGS SIDEBAR */}
+      {showSettingsSidebar && (
+        <div className="w-80 flex-shrink-0 border-l border-gray-200 animate-in slide-in-from-right duration-300">
+          <SettingsSidebar onClose={() => setShowSettingsSidebar(false)} />
         </div>
       )}
 

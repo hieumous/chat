@@ -11,7 +11,7 @@ import UploadProgressInMessage from "./UploadProgressInMessage";
 import MessageContextMenu from "./MessageContextMenu";
 import ReactionPicker from "./ReactionPicker";
 import ForwardModal from "./ForwardModal";
-import { SmileIcon, ReplyIcon, ForwardIcon, MoreVerticalIcon, PinIcon } from "lucide-react";
+import { SmileIcon, ReplyIcon, ForwardIcon, MoreVerticalIcon, PinIcon, PhoneIcon, VideoIcon, PhoneOffIcon } from "lucide-react";
 import toast from "react-hot-toast";
 
 // Context Menu Portal Component with drag functionality
@@ -418,7 +418,59 @@ function ChatContainer({ onToggleRightSidebar, showRightSidebar = false }) {
                         fileSize={msg.file?.fileSize}
                       />
                     )}
-                    {msg.text && <p className={msg.image || msg.file ? "mt-2" : ""}>{msg.text}</p>}
+                    {/* Call Message */}
+                    {msg.call && (() => {
+                      // Format duration to readable format (e.g., "5 phút 30 giây" or "30 giây")
+                      // Chỉ hiển thị thời lượng cho cuộc gọi đã trả lời (answered)
+                      const formatDuration = (seconds) => {
+                        if (!seconds || seconds === 0) return null;
+                        const minutes = Math.floor(seconds / 60);
+                        const secs = seconds % 60;
+                        if (minutes > 0 && secs > 0) {
+                          return `${minutes} phút ${secs} giây`;
+                        } else if (minutes > 0) {
+                          return `${minutes} phút`;
+                        } else {
+                          return `${secs} giây`;
+                        }
+                      };
+
+                      // Chỉ format duration cho cuộc gọi answered
+                      const durationText = msg.call.status === "answered" ? formatDuration(msg.call.duration) : null;
+                      
+                      return (
+                        <div className={`flex items-center gap-2 ${msg.text || msg.image || msg.file ? "mt-2" : ""}`}>
+                          {msg.call.status === "missed" ? (
+                            <PhoneOffIcon className={`w-5 h-5 ${isMyMessage ? "text-white" : "text-gray-600"}`} />
+                          ) : msg.call.callType === "video" ? (
+                            <VideoIcon className={`w-5 h-5 ${isMyMessage ? "text-white" : "text-gray-600"}`} />
+                          ) : (
+                            <PhoneIcon className={`w-5 h-5 ${isMyMessage ? "text-white" : "text-gray-600"}`} />
+                          )}
+                          <div className="flex flex-col">
+                            <span className={`text-sm font-medium ${isMyMessage ? "text-white" : "text-gray-900"}`}>
+                              {msg.call.callType === "video" ? "Cuộc gọi video" : "Cuộc gọi thoại"}
+                            </span>
+                            {msg.call.status === "answered" && durationText && (
+                              <span className={`text-xs ${isMyMessage ? "text-white text-opacity-80" : "text-gray-600"}`}>
+                                {durationText}
+                              </span>
+                            )}
+                            {msg.call.status === "missed" && (
+                              <span className={`text-xs ${isMyMessage ? "text-white text-opacity-80" : "text-gray-600"}`}>
+                                Cuộc gọi nhỡ
+                              </span>
+                            )}
+                            {msg.call.status === "rejected" && (
+                              <span className={`text-xs ${isMyMessage ? "text-white text-opacity-80" : "text-gray-600"}`}>
+                                Cuộc gọi bị từ chối
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    {msg.text && <p className={msg.image || msg.file || msg.call ? "mt-2" : ""}>{msg.text}</p>}
                     </>
                     )}
                     
